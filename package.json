@@ -1,0 +1,9 @@
+{
+  "name": "pmai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PMAI monorepo — root package for Railway deployment",
+  "engines": {
+    "node": ">=22"
+  }
+}
