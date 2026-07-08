@@ -1,0 +1,28 @@
+From: priya.sharma@retaildynamics.com
+To: support@yourproduct.com
+Subject: Cannot export reports - major workflow blocker
+Date: Wed, 25 Jun 2026 11:05:44 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Hi,
+
+I'm a Product Manager at Retail Dynamics and I use Core Platform daily to track customer feedback and roadmap items. I want to give you specific feedback on the reporting functionality because it's becoming a real problem for my team.
+
+What's broken or missing:
+
+EXPORT: There is no way to export the feedback list or the roadmap to CSV or Excel. I need to share this data with stakeholders who don't have accounts on your platform. Currently I'm manually copying data into a spreadsheet every Friday — that's about 45 minutes of wasted time each week.
+
+FILTERING: The date range filter on the feedback view doesn't work correctly. When I set a custom range, it sometimes shows items outside that range. This seems like a bug introduced in the last update.
+
+SCHEDULED REPORTS: I want to automatically send a weekly summary email to my leadership team. There's no way to schedule or automate reports.
+
+DASHBOARD CUSTOMIZATION: The dashboard is fixed. I want to pin my most important metrics and hide the ones I don't use.
+
+These gaps are pushing me to use separate BI tools (we're trialing Metabase) to fill the holes. That's extra cost and extra complexity we don't want.
+
+Please prioritize the export feature at minimum — even a basic CSV download would help enormously.
+
+Thanks,
+Priya Sharma
+Senior PM, Retail Dynamics

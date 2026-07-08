@@ -1,0 +1,26 @@
+From: marcus.lee@cloudstartup.co
+To: feedback@yourproduct.com
+Subject: Great product - the Jira integration saved us hours
+Date: Thu, 26 Jun 2026 16:33:18 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Hey team,
+
+Just wanted to send a quick note to say how much we're loving Core Platform. We've been using it for about 6 weeks now with a team of 8.
+
+The Jira integration is fantastic. Being able to push roadmap items directly to Jira sprints without copy-pasting saved our team probably 3-4 hours per week. The sync is reliable and the field mapping was easy to set up.
+
+The AI-generated PRD feature is also a game changer. I used it to draft a PRD for our new search feature — what would have taken me half a day took 20 minutes. The output was good enough that I only needed to make minor tweaks.
+
+A few small suggestions that would make it even better:
+
+1. Allow bulk-pushing multiple roadmap items to Jira at once (right now it's one at a time)
+2. Add a "duplicate document" button in the document workspace — I often start a new PRD from a previous one
+3. Show which roadmap items have been synced to Jira vs which haven't
+
+Overall though, really impressed. We'll definitely be renewing and expanding to the rest of our org.
+
+Keep up the great work!
+Marcus Lee
+CTO, CloudStartup Co

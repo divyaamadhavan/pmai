@@ -1,0 +1,28 @@
+From: aisha.patel@healthtech-solutions.com
+To: support@yourproduct.com
+Subject: Mobile app request - can't use platform on the go
+Date: Fri, 27 Jun 2026 08:47:55 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Hello Core Platform team,
+
+I'm a Product Lead at HealthTech Solutions and I've been a customer for 4 months. I want to raise something that's come up repeatedly in my team's feedback sessions.
+
+We do not have a mobile app and the mobile web experience is basically unusable.
+
+Here's why this matters for us: Our PMs and leadership team are frequently in customer meetings, on-site visits, or traveling. When a stakeholder asks "what's the status of feature X on the roadmap?" we need to be able to pull that up immediately on our phone. Right now, we can't — the desktop site doesn't render properly on mobile and the text is too small to read.
+
+Our specific asks:
+
+1. At minimum, a responsive mobile web design that works on iOS Safari and Chrome Android
+2. Read-only access to roadmap, feedback summary, and sprint status from mobile would cover 80% of our needs
+3. Push notifications for key events (roadmap status changes, new high-priority feedback) would be a bonus
+
+We're currently using a workaround where someone screenshots the dashboard and shares it in Slack before meetings. That's embarrassing and error-prone.
+
+We're not alone — I've seen this requested multiple times in your community forum too. Is mobile on the roadmap for 2026?
+
+Thank you,
+Aisha Patel
+Product Lead, HealthTech Solutions

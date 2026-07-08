@@ -1,0 +1,25 @@
+From: james.okafor@globalfinance.io
+To: sales@yourproduct.com
+Subject: SAML SSO is a hard requirement for our enterprise deal
+Date: Tue, 24 Jun 2026 14:22:10 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+
+Hello,
+
+I'm the VP of Engineering at Global Finance. We've been piloting Core Platform for the past month with a team of 12, and the feedback from the team has been very positive overall.
+
+However, we cannot proceed to a full company rollout (800 users) without SAML 2.0 Single Sign-On. This is a hard requirement from our security and compliance team — our InfoSec policy mandates that all SaaS tools with access to product data must authenticate through our Okta identity provider.
+
+We also need:
+- SCIM provisioning for automatic user lifecycle management
+- Role mapping from our IdP groups to your permission levels
+- Audit logs exportable in SIEM-compatible format (CEF or JSON)
+
+Our contract is worth $240,000 annually. We have budget approval and are ready to sign, but cannot move forward without SSO. Our security review deadline is July 15th.
+
+Is SSO on your roadmap? Can we get a timeline commitment?
+
+Best,
+James Okafor
+VP Engineering, Global Finance

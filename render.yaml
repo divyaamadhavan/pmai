@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: pmai
+    runtime: node
+    rootDir: app/backend
+    buildCommand: npm install && cd ../frontend && npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SQLITE_PATH
+        value: /var/data/pmai.db
+    disk:
+      name: pmai-data
+      mountPath: /var/data
+      sizeGB: 1
