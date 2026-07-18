@@ -239,7 +239,7 @@ router.post('/roadmap-health', async (req: Request, res: Response) => {
     const risk: 'Critical' | 'High' | 'Medium' | 'Low' =
       daysNoTicket > 90 ? 'Critical' : daysNoTicket > 60 ? 'High' : daysNoTicket > 30 ? 'Medium' : 'Low';
 
-    const recommendation: 'Create Sprint Ticket' | 'Reassess Priority' | 'Archive' | 'Needs Owner' | 'OK' =
+    const recommendation: 'Create Sprint Ticket' | 'Reassess Priority' | 'OK' =
       daysNoTicket > 90 ? 'Reassess Priority'
       : daysNoTicket > 30 ? 'Create Sprint Ticket'
       : 'OK';
@@ -284,7 +284,7 @@ router.post('/roadmap-health', async (req: Request, res: Response) => {
     ],
     alertSummary,
     itemsNeedingTicket: reports.filter((r) => r.recommendation === 'Create Sprint Ticket').map((r) => r.title),
-    itemsToArchive: reports.filter((r) => r.recommendation === 'Archive').map((r) => r.title),
+    itemsToArchive: [] as string[],
     agentNote: items.length === 0
       ? 'No roadmap items found. Add items in the Roadmap board first.'
       : alertSummary,

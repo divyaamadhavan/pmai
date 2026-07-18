@@ -80,7 +80,6 @@ export async function analyseFeedback(
   });
 }
 
-export type { ThemeMatch };
 
 // ─── Pipeline Preview ─────────────────────────────────────────────────────────
 

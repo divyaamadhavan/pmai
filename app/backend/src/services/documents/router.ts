@@ -355,7 +355,7 @@ router.post('/assistant', async (req: Request, res: Response) => {
   if (documentId) {
     const docRes = await query('SELECT title, sections FROM documents WHERE id = $1 AND tenant_id = $2 LIMIT 1', [documentId, tenantId]);
     if (docRes.rows[0]) {
-      documentTitle = docRes.rows[0].title;
+      documentTitle = docRes.rows[0].title as string;
       const secs = typeof docRes.rows[0].sections === 'string' ? JSON.parse(docRes.rows[0].sections) : (docRes.rows[0].sections ?? {});
       documentContent = secs.content ?? '';
     }
@@ -371,7 +371,7 @@ router.post('/assistant', async (req: Request, res: Response) => {
     );
     for (const row of filesRes.rows) {
       const secs = typeof row.sections === 'string' ? JSON.parse(row.sections) : (row.sections ?? {});
-      uploadedFiles.push({ name: row.title, content: secs.content ?? '' });
+      uploadedFiles.push({ name: row.title as string, content: secs.content ?? '' });
     }
   }
 
