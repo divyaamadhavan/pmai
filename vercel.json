@@ -1,17 +1,21 @@
 {
   "version": 2,
-  "buildCommand": "cd app/frontend && npm install && npm run build && cd ../backend && npm install",
-  "outputDirectory": "app/frontend/dist",
-  "functions": {
-    "app/backend/api/index.ts": {
-      "memory": 512,
-      "maxDuration": 30
+  "builds": [
+    {
+      "src": "app/frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    },
+    {
+      "src": "app/backend/api/index.ts",
+      "use": "@vercel/node"
     }
-  },
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/app/backend/api/index" },
-    { "source": "/health",     "destination": "/app/backend/api/index" },
-    { "source": "/:path*",     "destination": "/index.html" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/app/backend/api/index.ts" },
+    { "src": "/health",   "dest": "/app/backend/api/index.ts" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)",     "dest": "/index.html" }
   ],
   "env": {
     "VERCEL": "1"
