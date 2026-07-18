@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "buildCommand": "cd app/backend && npm install && npm run build",
+  "outputDirectory": "app/frontend/dist",
+  "builds": [
+    {
+      "src": "app/backend/src/index.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "app/backend/src/index.ts"
+    },
+    {
+      "src": "/health",
+      "dest": "app/backend/src/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "app/frontend/dist/$1"
+    }
+  ]
+}
