@@ -7,9 +7,9 @@
 
 import { getDb } from "./index.js";
 
-// Pre-computed bcrypt hashes (rounds=10) — avoids slow hash on serverless cold start
-const ADMIN_HASH = "$2a$10$ATcbdDcPYOHVr40ZLn8/GOrifn8ODoyllug/AwJtCYciYQxA1keGO";
-const PM_HASH    = "$2a$10$zmLSqihOJNGn7sLISHtRnOB7WQ0G4HG7wPAw/jFurqRnVeJGVtR5a";
+// Pre-computed bcrypt hashes (rounds=4) — low cost for fast compare on Lambda CPU
+const ADMIN_HASH = "$2a$04$NSeXCO45l/0Z4txpqmhruuIXfjjykMR14ilH7DtYjNV7RElgsmHFG";
+const PM_HASH    = "$2a$04$gu6HXjoRhpy3RUmF89EM1ONnxNlwLxlHtdgfA0yyjybSbuuItFlTy";
 
 // Fixed IDs so tokens remain valid across DB resets — changing these would invalidate all existing JWTs
 const TENANT_ID = '453d2f00-b151-41aa-b314-33edb7f8749c';
