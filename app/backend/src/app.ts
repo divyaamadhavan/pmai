@@ -69,14 +69,16 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/projects',  projectsRouter);
 app.use('/api/agents',    agentsRouter);
 
-const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
-app.use(express.static(frontendDist));
-app.get('*', (_req: Request, res: Response) => {
-  const indexPath = path.join(frontendDist, 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) res.status(404).json({ data: null, error: { message: 'Route not found', code: 'NOT_FOUND' } });
+if (process.env.VERCEL !== '1') {
+  const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+  app.use(express.static(frontendDist));
+  app.get('*', (_req: Request, res: Response) => {
+    const indexPath = path.join(frontendDist, 'index.html');
+    res.sendFile(indexPath, (err) => {
+      if (err) res.status(404).json({ data: null, error: { message: 'Route not found', code: 'NOT_FOUND' } });
+    });
   });
-});
+}
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[Unhandled error]', err);
