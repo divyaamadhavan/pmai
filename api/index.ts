@@ -1,13 +1,18 @@
 import 'dotenv/config';
-import { getDb } from '../app/backend/src/db/index.js';
-import { connectRedis } from '../app/backend/src/cache/redis.js';
-import { seed } from '../app/backend/src/db/seed.js';
+import type { IncomingMessage, ServerResponse } from 'http';
+
+const ready: Promise<void> = (async () => {
+  const { getDb } = await import('../app/backend/src/db/index.js');
+  getDb();
+  const { connectRedis } = await import('../app/backend/src/cache/redis.js');
+  await connectRedis();
+  const { seed } = await import('../app/backend/src/db/seed.js');
+  await seed();
+})();
+
 import app from '../app/backend/src/app.js';
 
-// Initialise DB synchronously (better-sqlite3 is sync)
-getDb();
-// Fire-and-forget async init
-connectRedis();
-seed().catch(() => {});
-
-export default app;
+export default async (req: IncomingMessage, res: ServerResponse) => {
+  await ready;
+  app(req, res);
+};
