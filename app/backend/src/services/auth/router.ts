@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../db/index.js';
@@ -77,8 +78,8 @@ router.post('/login', async (req: Request, res: Response) => {
   const accessToken = signAccessToken(jwtPayload);
   const refreshToken = signRefreshToken(user.id as string);
 
-  // Persist refresh token hash
-  const tokenHash = await bcrypt.hash(refreshToken, 8);
+  // Persist refresh token hash (SHA-256 is sufficient — token is already a random JWT)
+  const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await query(
     'INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)',
