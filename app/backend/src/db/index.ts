@@ -2,7 +2,8 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-const DB_PATH = process.env.SQLITE_PATH ?? path.join(__dirname, '..', '..', 'pmai.db');
+const DB_PATH = process.env.SQLITE_PATH ??
+  (process.env.VERCEL === '1' ? '/tmp/pmai.db' : path.join(__dirname, '..', '..', 'pmai.db'));
 
 let _db: Database.Database | null = null;
 
