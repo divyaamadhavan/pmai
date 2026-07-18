@@ -19,6 +19,8 @@ import agentsRouter from './services/agents/router.js';
 
 const app = express();
 
+app.set('trust proxy', 1); // trust Vercel's proxy so rate-limit reads the real client IP
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
