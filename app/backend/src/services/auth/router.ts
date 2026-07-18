@@ -38,6 +38,7 @@ const RefreshSchema = z.object({
 // ─── POST /login ─────────────────────────────────────────────────────────────
 
 router.post('/login', async (req: Request, res: Response) => {
+  console.log('[login] start');
   const parsed = LoginSchema.safeParse(req.body);
   if (!parsed.success) {
     badRequest(res, parsed.error.issues.map((i) => i.message).join('; '));
@@ -45,16 +46,29 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   const { email, password } = parsed.data;
+  console.log('[login] querying user:', email);
 
   const result = await query(
     `SELECT id, tenant_id, product_area_id, email, password_hash, full_name, role, is_active
      FROM users WHERE email = $1 LIMIT 1`,
     [email.toLowerCase()]
   );
+  console.log('[login] query done, found:', result.rows.length);
 
   const user = result.rows[0];
 
-  if (!user || !(await bcrypt.compare(password, user.password_hash as string))) {
+  if (!user) {
+    console.log('[login] user not found');
+    unauthorized(res, 'Invalid email or password');
+    return;
+  }
+
+  console.log('[login] comparing password, hash prefix:', (user.password_hash as string).substring(0, 7));
+  const t0 = Date.now();
+  const match = await bcrypt.compare(password, user.password_hash as string);
+  console.log('[login] bcrypt done in', Date.now() - t0, 'ms, match:', match);
+
+  if (!match) {
     unauthorized(res, 'Invalid email or password');
     return;
   }
@@ -85,6 +99,7 @@ router.post('/login', async (req: Request, res: Response) => {
     'INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)',
     [uuidv4(), user.id, tokenHash, expiresAt]
   );
+  console.log('[login] success for', email);
 
   ok(res, {
     accessToken,
