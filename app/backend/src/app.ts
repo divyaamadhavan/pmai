@@ -73,6 +73,22 @@ const frontendDist = process.env.VERCEL === '1'
   ? path.join(process.cwd(), 'app/frontend/dist')
   : path.join(__dirname, '..', '..', 'frontend', 'dist');
 
+app.get('/debug-paths', (_req: Request, res: Response) => {
+  const fs = require('fs');
+  const tryPaths = [
+    path.join(process.cwd(), 'app/frontend/dist'),
+    path.join(process.cwd(), 'frontend/dist'),
+    path.join(__dirname, '..', '..', 'frontend', 'dist'),
+    path.join(__dirname, 'frontend/dist'),
+  ];
+  res.json({
+    cwd: process.cwd(),
+    dirname: __dirname,
+    VERCEL: process.env.VERCEL,
+    paths: tryPaths.map(p => ({ path: p, exists: fs.existsSync(p) })),
+  });
+});
+
 app.use(express.static(frontendDist));
 app.get('*', (_req: Request, res: Response) => {
   res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
