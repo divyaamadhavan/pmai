@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "cd app/frontend && npm install && npm run build",
   "builds": [
     {
       "src": "app/backend/api/index.ts",
       "use": "@vercel/node",
       "config": {
+        "bundle": false,
         "includeFiles": [
           "app/frontend/dist/**/*",
           "app/backend/src/db/schema.sql"
