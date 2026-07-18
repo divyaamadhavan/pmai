@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "PMAI monorepo — root package for Railway deployment",
+  "scripts": {
+    "build": "cd app/frontend && npm install && npm run build"
+  },
   "engines": {
     "node": ">=22"
   }
