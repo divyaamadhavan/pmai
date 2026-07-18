@@ -93,10 +93,10 @@ export function Dashboard() {
   const neu = stats?.sentiment.neutral ?? 0;
 
   return (
-    <div className="min-h-full p-8" style={{ background: '#020212' }}>
+    <div className="min-h-full p-4 sm:p-8" style={{ background: '#020212' }}>
 
       {/* ── Header ── */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <p className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: 'rgba(0,212,255,0.4)' }}>
           ◆ WORKSPACE OVERVIEW
         </p>
@@ -116,14 +116,14 @@ export function Dashboard() {
       ) : (
         <>
           {/* ── Pipeline Flow ── */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(0,212,255,0.4)' }}>PM Pipeline</span>
               <div className="flex-1 h-px" style={{ background: 'rgba(0,212,255,0.08)' }} />
             </div>
 
-            {/* Step cards + connecting arrows */}
-            <div className="flex items-stretch gap-0">
+            {/* Step cards + connecting arrows — horizontal scroll on mobile */}
+            <div className="flex items-stretch gap-0 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ WebkitOverflowScrolling: 'touch' }}>
               {STEPS.map((step, i) => {
                 const empty = stats ? step.isEmpty(stats) : true;
                 const value = stats ? step.getValue(stats) : '—';
@@ -131,10 +131,10 @@ export function Dashboard() {
                 const Icon = step.icon;
 
                 return (
-                  <div key={step.path} className="flex items-center gap-0 flex-1 min-w-0">
+                  <div key={step.path} className="flex items-center gap-0 flex-1 min-w-[140px]">
                     <Link
                       to={step.path}
-                      className="group flex-1 flex flex-col rounded-xl p-4 transition-all hover:scale-[1.02] min-w-0"
+                      className="group flex-1 flex flex-col rounded-xl p-3 sm:p-4 transition-all hover:scale-[1.02] min-w-0"
                       style={{
                         background: 'linear-gradient(135deg, rgba(10,10,36,0.95), rgba(6,6,26,0.95))',
                         border: `1px solid ${step.color}20`,

@@ -1,0 +1,26 @@
+From: tom.brennan@healthtech.co
+To: feedback@pmai.example
+Date: Thu, 09 Jan 2026 08:50:00 +0000
+Subject: AI-generated PRDs are great but missing edge cases
+
+Hi PMAI team,
+
+I've been using the AI PRD generation feature for 6 weeks and wanted to share detailed feedback.
+
+What's working well:
+- The executive summary section is consistently excellent
+- User stories map well to our actual customer personas
+- The format saves me about 2 hours per document
+
+Where it falls short:
+- Edge cases and error states are rarely included. For a health tech product this is critical — we need failure modes documented
+- The AI doesn't ask about regulatory requirements (HIPAA, FDA) before generating
+- Acceptance criteria tend to be too vague for our engineering team ("the system should handle...") rather than specific and testable
+
+Would love to see a "document type" selector so healthcare/fintech teams can get more rigorous outputs.
+
+Overall still a 9/10 product. Keep up the great work.
+
+Tom Brennan
+Director of Product
+HealthTech Co

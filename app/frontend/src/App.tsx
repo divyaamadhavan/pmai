@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { AgentStatusProvider } from './contexts/AgentStatusContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -12,6 +13,7 @@ import { RoadmapBoard } from './pages/RoadmapBoard';
 import { SprintPlanner } from './pages/SprintPlanner';
 import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Settings } from './pages/Settings';
+import { AgentCenter } from './pages/AgentCenter';
 import { LoadingSpinner } from './components/LoadingSpinner';
 
 const queryClient = new QueryClient({
@@ -58,6 +60,7 @@ function AppRoutes() {
         <Route path="/roadmap" element={<RoadmapBoard />} />
         <Route path="/sprint" element={<SprintPlanner />} />
         <Route path="/knowledge" element={<KnowledgeBase />} />
+        <Route path="/agents" element={<AgentCenter />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -70,7 +73,9 @@ export default function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AppRoutes />
+          <AgentStatusProvider>
+            <AppRoutes />
+          </AgentStatusProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>

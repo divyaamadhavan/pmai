@@ -1,40 +1,62 @@
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { PipelineBar } from './PipelineBar';
-import { Bell, FolderOpen } from 'lucide-react';
+import { Bell, FolderOpen, Menu } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 
 export function Layout() {
   const { user } = useAuth();
   const { activeProject } = useProject();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#020212' }}>
-      <Sidebar />
+      {/* Mobile overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 md:hidden"
+          style={{ background: 'rgba(2,2,18,0.7)', backdropFilter: 'blur(2px)' }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         {/* Top bar */}
         <header
-          className="flex h-14 shrink-0 items-center justify-between px-6"
+          className="flex h-14 shrink-0 items-center justify-between px-4 sm:px-6"
           style={{
             background: 'rgba(6,6,26,0.9)',
             borderBottom: '1px solid rgba(0,212,255,0.1)',
             backdropFilter: 'blur(12px)',
           }}
         >
-          {activeProject ? (
-            <div className="flex items-center gap-2 text-sm">
-              <FolderOpen className="h-4 w-4" style={{ color: '#a855f7' }} />
-              <span className="font-medium" style={{ color: 'rgba(0,212,255,0.9)' }}>
-                {activeProject.name}
-              </span>
-            </div>
-          ) : (
-            <div />
-          )}
+          <div className="flex items-center gap-2">
+            {/* Hamburger — mobile only */}
+            <button
+              className="md:hidden rounded-lg p-2 transition-all hover:bg-white/5"
+              style={{ color: 'rgba(0,212,255,0.6)' }}
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
 
-          <div className="flex items-center gap-3">
+            {activeProject ? (
+              <div className="flex items-center gap-2 text-sm">
+                <FolderOpen className="h-4 w-4" style={{ color: '#a855f7' }} />
+                <span className="font-medium hidden sm:block" style={{ color: 'rgba(0,212,255,0.9)' }}>
+                  {activeProject.name}
+                </span>
+              </div>
+            ) : (
+              <div />
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               className="relative rounded-lg p-2 transition-all hover:bg-white/5"
               style={{ color: 'rgba(0,212,255,0.6)' }}
@@ -47,14 +69,14 @@ export function Layout() {
             </button>
 
             <div
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5"
+              className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5"
               style={{
                 background: 'rgba(0,212,255,0.05)',
                 border: '1px solid rgba(0,212,255,0.15)',
               }}
             >
               <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0"
                 style={{
                   background: 'linear-gradient(135deg, #00d4ff, #a855f7)',
                   color: '#020212',
@@ -62,7 +84,7 @@ export function Layout() {
               >
                 {user?.name?.charAt(0).toUpperCase() ?? 'U'}
               </div>
-              <span className="text-sm font-medium" style={{ color: 'rgba(226,232,240,0.9)' }}>
+              <span className="text-sm font-medium hidden sm:block" style={{ color: 'rgba(226,232,240,0.9)' }}>
                 {user?.name}
               </span>
             </div>

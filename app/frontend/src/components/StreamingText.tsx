@@ -6,10 +6,11 @@ interface StreamingTextProps {
   path: string;
   body: Record<string, unknown>;
   onComplete?: (text: string) => void;
+  onError?: (message: string) => void;
   className?: string;
 }
 
-export function StreamingText({ path, body, onComplete, className = '' }: StreamingTextProps) {
+export function StreamingText({ path, body, onComplete, onError, className = '' }: StreamingTextProps) {
   const [text, setText] = useState('');
   const [isStreaming, setIsStreaming] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,13 +36,17 @@ export function StreamingText({ path, body, onComplete, className = '' }: Stream
       },
       onError: () => {
         if (cancelled) return;
-        setError('Failed to stream response. Please try again.');
+        const msg = 'Failed to stream response. Please try again.';
+        setError(msg);
         setIsStreaming(false);
+        onError?.(msg);
       },
     }).catch((err: unknown) => {
       if (cancelled) return;
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const msg = err instanceof Error ? err.message : 'An error occurred';
+      setError(msg);
       setIsStreaming(false);
+      onError?.(msg);
     });
 
     return () => { cancelled = true; };

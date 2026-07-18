@@ -57,7 +57,7 @@ router.get('/', async (req: Request, res: Response) => {
 
   if (type) { conditions.push(`d.type = $${paramIdx++}`); params.push(type); }
   if (status) { conditions.push(`d.status = $${paramIdx++}`); params.push(status); }
-  if (productAreaId) { conditions.push(`d.product_area_id = $${paramIdx++}`); params.push(productAreaId); }
+  if (productAreaId) { conditions.push(`(d.product_area_id = $${paramIdx++} OR d.product_area_id IS NULL)`); params.push(productAreaId); }
 
   const where = conditions.join(' AND ');
 

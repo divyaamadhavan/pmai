@@ -3,20 +3,21 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, MessageSquare, FileText, Lightbulb, Map, Zap,
   BookOpen, Settings, LogOut, ChevronDown, Plus, FolderOpen,
-  Pencil, Trash2, Check, X, ChevronRight,
+  Pencil, Trash2, Check, X, ChevronRight, Bot,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 
 const pipelineSteps = [
-  { num: 1, to: '/feedback',  icon: MessageSquare, label: 'Feedback Hub',   color: '#00d4ff', desc: 'Collect & cluster' },
-  { num: 2, to: '/insights',  icon: Lightbulb,     label: 'Insights',       color: '#ffee00', desc: 'Analyse themes' },
-  { num: 3, to: '/documents', icon: FileText,      label: 'Documents',      color: '#00ff88', desc: 'PRDs & specs' },
-  { num: 4, to: '/roadmap',   icon: Map,           label: 'Roadmap',        color: '#ff2d8b', desc: 'Prioritise work' },
-  { num: 5, to: '/sprint',    icon: Zap,           label: 'Sprint Planner', color: '#a855f7', desc: 'Plan & groom' },
+  { num: 1, to: '/feedback',  icon: MessageSquare, label: 'Feedback Hub',      color: '#00d4ff', desc: 'Collect & classify' },
+  { num: 2, to: '/documents', icon: FileText,       label: 'Documents',         color: '#00ff88', desc: 'PRDs & specs' },
+  { num: 3, to: '/roadmap',   icon: Map,            label: 'Roadmap',           color: '#ff2d8b', desc: 'Prioritise work' },
+  { num: 4, to: '/sprint',    icon: Zap,            label: 'Sprint Planner',    color: '#a855f7', desc: 'Plan & groom' },
+  { num: 5, to: '/insights',  icon: Lightbulb,      label: 'Reports',           color: '#ffee00', desc: 'Communicate findings' },
 ];
 
 const toolItems = [
+  { to: '/agents',    icon: Bot,      label: 'Agent Center',  color: '#a855f7' },
   { to: '/knowledge', icon: BookOpen, label: 'Knowledge Base', color: '#a855f7' },
 ];
 
@@ -140,12 +141,17 @@ function ProjectSwitcher() {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, logout } = useAuth();
 
   return (
     <div
-      className="flex h-full w-56 flex-col"
+      className={[
+        'flex h-full w-56 flex-col shrink-0',
+        'fixed inset-y-0 left-0 z-50 transition-transform duration-300',
+        'md:relative md:translate-x-0 md:z-auto',
+        open ? 'translate-x-0' : '-translate-x-full',
+      ].join(' ')}
       style={{
         background: 'linear-gradient(180deg, #06061a 0%, #020212 100%)',
         borderRight: '1px solid rgba(0,212,255,0.08)',
@@ -154,7 +160,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-4" style={{ borderBottom: '1px solid rgba(0,212,255,0.08)' }}>
         <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0"
           style={{
             background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(168,85,247,0.2))',
             border: '1px solid rgba(0,212,255,0.4)',
@@ -163,10 +169,18 @@ export function Sidebar() {
         >
           <Zap className="h-5 w-5" style={{ color: '#00d4ff', filter: 'drop-shadow(0 0 4px #00d4ff)' }} />
         </div>
-        <div>
+        <div className="flex-1">
           <span className="text-base font-bold tracking-tight" style={{ color: '#00d4ff', textShadow: '0 0 8px rgba(0,212,255,0.5)' }}>PMAI</span>
           <p className="text-xs" style={{ color: 'rgba(0,212,255,0.4)', lineHeight: 1 }}>AI for PMs</p>
         </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="md:hidden rounded-lg p-1.5 transition-all hover:bg-white/5"
+          style={{ color: 'rgba(0,212,255,0.5)' }}
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       <ProjectSwitcher />
@@ -175,6 +189,7 @@ export function Sidebar() {
       <div className="px-3 pt-3 pb-1">
         <NavLink
           to="/dashboard"
+          onClick={onClose}
           className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all"
           style={({ isActive }) => isActive
             ? { background: 'rgba(0,212,255,0.08)', color: '#00d4ff', borderLeft: '2px solid #00d4ff' }
@@ -203,6 +218,7 @@ export function Sidebar() {
             <NavLink
               key={to}
               to={to}
+              onClick={onClose}
               className="group relative flex items-center gap-2.5 rounded-lg px-2 py-2 transition-all mb-0.5"
               style={({ isActive }) => isActive
                 ? { background: `${color}10`, borderLeft: `2px solid ${color}`, paddingLeft: '6px' }
@@ -250,6 +266,7 @@ export function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={onClose}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-all mb-0.5"
             style={({ isActive }) => isActive
               ? { background: `${color}10`, color, borderLeft: `2px solid ${color}` }

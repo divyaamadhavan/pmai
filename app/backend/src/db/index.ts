@@ -22,6 +22,29 @@ export function getDb(): Database.Database {
     try { _db.exec(stmt + ';'); } catch { /* ignore */ }
   }
 
+  // Explicit column migrations — safe to re-run (errors ignored)
+  const migrations = [
+    `ALTER TABLE feedback_items ADD COLUMN status TEXT DEFAULT 'new'`,
+    `ALTER TABLE feedback_classifications ADD COLUMN customer_aspect TEXT`,
+    `ALTER TABLE feedback_classifications ADD COLUMN critical_recommendation INTEGER DEFAULT 0`,
+    `ALTER TABLE feedback_classifications ADD COLUMN critical_reason TEXT`,
+    `ALTER TABLE feedback_classifications ADD COLUMN financial_benefits TEXT DEFAULT '[]'`,
+    `ALTER TABLE feedback_classifications ADD COLUMN qualitative_benefits TEXT DEFAULT '[]'`,
+    `ALTER TABLE feedback_classifications ADD COLUMN type TEXT DEFAULT 'Enhancement'`,
+    // Agent enrichment write-back columns
+    `ALTER TABLE feedback_items ADD COLUMN agent_category TEXT`,
+    `ALTER TABLE feedback_items ADD COLUMN agent_priority TEXT`,
+    `ALTER TABLE feedback_items ADD COLUMN agent_composite_score INTEGER`,
+    `ALTER TABLE feedback_themes ADD COLUMN agent_triage_decision TEXT`,
+    `ALTER TABLE feedback_themes ADD COLUMN agent_triage_rationale TEXT`,
+    `ALTER TABLE feedback_themes ADD COLUMN agent_triage_details TEXT`,
+    `ALTER TABLE feedback_themes ADD COLUMN agent_triage_actioned INTEGER DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS agent_snapshots (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), tenant_id TEXT NOT NULL, agent_type TEXT NOT NULL, result_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,
+  ];
+  for (const m of migrations) {
+    try { _db.exec(m + ';'); } catch { /* column already exists — ignore */ }
+  }
+
   return _db;
 }
 

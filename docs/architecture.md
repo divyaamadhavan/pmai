@@ -4,9 +4,9 @@
 
 | Field | Detail |
 |---|---|
-| Version | 3.0 |
+| Version | 3.1 |
 | Status | Final |
-| Date | 2026-07-08 |
+| Date | 2026-07-17 |
 | Source | Built application |
 
 ---
@@ -63,8 +63,9 @@ src/
 │   ├── Dashboard.tsx           ← overview, pipeline status cards
 │   ├── FeedbackHub.tsx         ← upload, analyse, pipeline approval
 │   ├── Insights.tsx            ← theme summaries, AI Q&A
-│   ├── DocumentWorkspace.tsx   ← doc library, inline edit, versions, AI assistant
-│   ├── Roadmap.tsx
+│   ├── DocumentWorkspace.tsx   ← doc library, inline edit, versions, AI assistant, agent banner
+│   ├── RoadmapBoard.tsx        ← kanban board with status change dropdown
+│   ├── AgentCenter.tsx         ← run agents (triage, etc.); sets AgentStatusContext on run
 │   ├── SprintPlanner.tsx
 │   └── KnowledgeBase.tsx
 ├── components/
@@ -73,16 +74,19 @@ src/
 │   ├── Modal.tsx
 │   └── LoadingSpinner.tsx
 ├── contexts/
-│   └── ProjectContext.tsx      ← active product area
+│   ├── ProjectContext.tsx      ← active product area
+│   └── AgentStatusContext.tsx  ← global agent/pipeline running state (banner coordination)
 ├── lib/
 │   ├── api.ts                  ← Axios instance + fetchSSEPost helper
 │   └── auth.ts
-└── App.tsx                     ← route definitions
+└── App.tsx                     ← route definitions; wraps tree in AgentStatusProvider
 ```
 
 ### Key Patterns
 
 **React Query** — all server state. Every query uses `useQuery`; mutations use `useMutation` with `queryClient.invalidateQueries`.
+
+**AgentStatusContext** — a global React context (`AgentStatusContext.tsx`) that tracks whether any agent or pipeline is currently running. It exposes `setAgentRunning(label)` and `clearAgentRunning()`. Callers: `AgentCenter.tsx` (triage/custom agents) and `PipelineApprovalModal.tsx` (feedback pipeline). Consumer: `DocumentWorkspace.tsx` shows a yellow "running" banner and increases its polling interval while any agent is active.
 
 **SSE Streaming** (`fetchSSEPost`):
 - Opens an SSE connection via POST body
@@ -95,6 +99,8 @@ src/
 - `showVersions` — version history panel toggle
 - `attachedDocs` — documents attached as AI context
 - `messages` — AI assistant chat history
+- `prdAgentActive` — true when any roadmap item has status `planned`; drives a "drafting PRD" banner and polling; checked via `roadmap-planned-check` query (polls all planned items tenant-wide, no product area filter)
+- `agentRunning` / `agentLabel` — read from `AgentStatusContext`; drives yellow "running" banner when a background agent is active
 
 **sections parsing** — The backend stores `sections` as a JSON string in SQLite. The frontend parses it on read: `typeof sections === 'string' ? JSON.parse(sections) : sections` to extract `sections.content`.
 
@@ -122,7 +128,8 @@ src/
 │   └── index.ts                ← All AI + keyword detection functions
 └── db/
     ├── schema.sql              ← Table definitions
-    └── reset.ts                ← Seed data (2 feedback emails, demo user)
+    ├── seed.ts                 ← Seed data (2 users, 1 product area); uses fixed deterministic UUIDs
+    └── reset.ts                ← Drops and re-creates DB, then calls seed
 ```
 
 ### Route Structure
@@ -131,7 +138,7 @@ src/
 |---|---|---|
 | Auth | `/api/auth` | `POST /login`, `GET /me` |
 | Feedback | `/api/feedback` | `POST /upload`, `GET /items`, `POST /analyse-existing`, `POST /pipeline/commit` |
-| Insights | `/api/insights` | `GET /themes`, `POST /ask` |
+| Insights | `/api/insights` | `GET /themes`, `POST /ask`, `GET /pipeline-summary`, `POST /generate` |
 | Documents | `/api/documents` | `GET /`, `POST /`, `PUT /:id`, `DELETE /:id`, `GET /:id/versions`, `POST /:id/restore/:versionId`, `POST /:id/ask` |
 | Roadmap | `/api/roadmap` | `GET/POST /items`, `PATCH /items/:id` |
 | Sprint | `/api/sprint` | `GET/POST /sprints`, `PATCH /sprints/:id`, `GET/POST /tickets`, `PATCH /tickets/:id`, `PATCH /tickets/:id/status`, `POST /sprints/:id/brief` |
@@ -141,6 +148,9 @@ src/
 
 **`POST /api/feedback/analyse-existing`**
 Reads all `feedback_items` from the DB, runs `analyseFeedback()` (keyword-based), returns `{ themes, themeCounts, themeEvidence, feedbackCount, productAreaId, preview }`. Does not save anything — user approves via pipeline/commit.
+
+**`GET /api/insights/pipeline-summary` and `POST /api/insights/generate`**
+Both endpoints filter feedback and themes using `(product_area_id = $N OR product_area_id IS NULL)`. The `IS NULL` arm is required because the feedback pipeline creates all data without a product area assigned. Without this, reports return empty.
 
 **`POST /api/feedback/pipeline/commit`** (SSE)
 Receives themes from the client body, runs the full pipeline sequentially: stores themes → creates opportunities → generates PRD → User Stories → Acceptance Criteria → Roadmap items → Sprint → Sprint Tickets. Emits `progress` events per step and `done` at completion.
@@ -300,7 +310,28 @@ PM approves → POST /api/feedback/pipeline/commit (SSE)
       └─ Create Sprint Tickets
 ```
 
-### 7.2 Document Edit → Version Saved
+### 7.2 Roadmap Item → Planned → PRD Auto-Draft
+
+```
+PM changes roadmap item status to "planned" (status dropdown on card)
+      ↓
+PUT /api/roadmap/:id { status: 'planned' }
+      ├─ Check: does a PRD draft already exist for this item?
+      ├─ If not: INSERT into documents (type: PRD, title: 'PRD Draft: {item title}')
+      └─ Return updated item + prdDraftId
+            ↓
+Frontend (RoadmapBoard.tsx):
+  changeStatusMut.onSuccess → invalidate ['documents'] and ['roadmap-planned-check']
+            ↓
+DocumentWorkspace.tsx:
+  roadmap-planned-check polls /api/roadmap?status=planned (tenant-wide, no area filter)
+  prdAgentActive = planned.length > 0
+  shouldPoll = agentRunning || prdAgentActive → refetchDocs every 3 s
+  Banner: "Agent drafting PRD · please wait…" until PRD draft doc appears
+  Banner switches to "PRD draft ready · review below" once doc with title starting "PRD Draft:" is found
+```
+
+### 7.3 Document Edit → Version Saved
 
 ```
 PM opens document → clicks Edit
@@ -321,7 +352,7 @@ Pre renders updated content
 History panel: GET /api/documents/:id/versions → shows v1, v2…
 ```
 
-### 7.3 Sprint Brief (SSE)
+### 7.4 Sprint Brief (SSE)
 
 ```
 PM clicks "Sprint Brief"
@@ -357,7 +388,16 @@ The `PUT /api/documents/:id` handler is wrapped in `withTransaction`. Before upd
 ### 8.5 Multi-tenant Isolation
 Every SQL query filters by `tenant_id`. No cross-tenant data leakage is possible at the query layer.
 
-### 8.6 SQLite vs. PostgreSQL
+### 8.6 Deterministic Seed UUIDs
+`seed.ts` uses hard-coded fixed UUIDs for tenant, product area, admin, and PM. This ensures JWT tokens (which embed `tenantId`) remain valid after a full DB reset — the user does not need to log in again. If these IDs change, all existing browser sessions become silently empty (valid JWT, wrong tenant), not 401 — so changing them is a breaking operation.
+
+### 8.7 Null Product-Area Scoping for Pipeline Data
+All data created by the feedback pipeline (`feedback_themes`, `roadmap_items`, `documents`) has `product_area_id = NULL` because the pipeline operates at tenant level, not area level. Any SQL filter that uses an exact `product_area_id = $N` match will exclude all pipeline-created data. The correct pattern is `(product_area_id = $N OR product_area_id IS NULL)`. This is applied in:
+- `GET /api/insights/pipeline-summary`
+- `POST /api/insights/generate`
+- `GET /api/documents` (documents endpoint)
+
+### 8.8 SQLite vs. PostgreSQL
 SQLite (`better-sqlite3`) is used — zero-config, fast for single-server. Migration to PostgreSQL when multi-server is needed: the `query()` helper abstracts the driver, but `ANY($1)` must remain as `IN (?,?,?)`.
 
 ---
@@ -369,9 +409,14 @@ SQLite (`better-sqlite3`) is used — zero-config, fast for single-server. Migra
 | Backend | 3000 | `cd PMAI/app/backend && npm run dev` |
 | Frontend | 5173 | `cd PMAI/app/frontend && npm run dev` |
 
-**Default credentials:** `pm@acme.example` / `PM12345!`
+**Default credentials:** `pm@acme.example` / `PM12345!` (also `admin@acme.example` / `Admin12345!`)
 
-**Seed data (reset.ts):** 2 feedback emails (Sarah Mitchell — onboarding & permissions; James Okafor — sprint planner & export)
+**Seed data (seed.ts):** 2 users (Admin, PM), 1 product area (Core Platform). Uses **fixed deterministic UUIDs** so JWT tokens remain valid across DB resets — no re-login required after clearing data.
+
+Fixed IDs:
+- Tenant: `453d2f00-b151-41aa-b314-33edb7f8749c`
+- Product Area: `728a9473-29a3-45e4-9f70-dcc3e605c30d`
+- PM user: `f8fb6ebb-a82b-4340-b1ff-e1e936250df9`
 
 **Environment variables (backend):**
 ```

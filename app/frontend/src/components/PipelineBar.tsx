@@ -3,10 +3,9 @@ import { ChevronRight } from 'lucide-react';
 
 const STEPS = [
   { num: 1, label: 'Feedback',  path: '/feedback',  color: '#00d4ff' },
-  { num: 2, label: 'Insights',  path: '/insights',  color: '#ffee00' },
-  { num: 3, label: 'Docs / PRD', path: '/documents', color: '#00ff88' },
-  { num: 4, label: 'Roadmap',   path: '/roadmap',   color: '#ff2d8b' },
-  { num: 5, label: 'Sprint',    path: '/sprint',    color: '#a855f7' },
+  { num: 2, label: 'Docs / PRD', path: '/documents', color: '#00ff88' },
+  { num: 3, label: 'Roadmap',   path: '/roadmap',   color: '#ff2d8b' },
+  { num: 4, label: 'Sprint',    path: '/sprint',    color: '#a855f7' },
 ];
 
 const PIPELINE_PATHS = new Set(STEPS.map((s) => s.path));

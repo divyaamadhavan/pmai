@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CheckCircle, XCircle, FileText, LayoutGrid, Zap, ChevronDown, ChevronUp, Loader2, Sparkles } from 'lucide-react';
 import { fetchSSEPost } from '../lib/api';
+import { useAgentStatus } from '../contexts/AgentStatusContext';
 
 interface Theme { name: string; count: number; }
 interface ProposedItem { title: string; description?: string; priority?: number; type?: string; points?: number; }
@@ -77,6 +78,7 @@ function Section({ title, color, icon: Icon, items, expanded, onToggle }: {
 }
 
 export function PipelineApprovalModal({ preview, themes, themeCounts, themeEvidence, feedbackCount, productAreaId, onClose, onCommitted }: Props) {
+  const { setAgentRunning, clearAgentRunning } = useAgentStatus();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ prd: true });
   const [prdTitle, setPrdTitle] = useState(preview.proposedPRD.title);
   const [sprintName, setSprintName] = useState(preview.proposedSprintName);
@@ -96,6 +98,7 @@ export function PipelineApprovalModal({ preview, themes, themeCounts, themeEvide
     setIsCommitting(true);
     setProgress([]);
     setError('');
+    setAgentRunning('Feedback Pipeline');
 
     await fetchSSEPost('/api/feedback/pipeline/commit', {
       themes,
@@ -117,9 +120,9 @@ export function PipelineApprovalModal({ preview, themes, themeCounts, themeEvide
           setError(data); setIsCommitting(false);
         }
       },
-      onDone: () => { setIsCommitting(false); },
-      onError: () => { setError('Pipeline failed. Please try again.'); setIsCommitting(false); },
-    }).catch((e: Error) => { setError(e.message); setIsCommitting(false); });
+      onDone: () => { setIsCommitting(false); clearAgentRunning(); },
+      onError: () => { setError('Pipeline failed. Please try again.'); setIsCommitting(false); clearAgentRunning(); },
+    }).catch((e: Error) => { setError(e.message); setIsCommitting(false); clearAgentRunning(); });
   };
 
   return (

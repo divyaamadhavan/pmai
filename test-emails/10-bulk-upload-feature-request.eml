@@ -1,0 +1,21 @@
+From: mei.zhang@ecommerce-giant.com
+To: feedback@pmai.example
+Date: Fri, 10 Jan 2026 16:22:00 +0000
+Subject: Need bulk feedback upload — CSV or Zendesk connector
+
+Hello,
+
+We receive about 2,000 customer support tickets per week. Right now we can only upload feedback one email at a time which is completely unworkable at our scale.
+
+We need one of the following:
+1. CSV bulk upload (ticket ID, customer email, message body, date, channel)
+2. Direct Zendesk connector that pulls tickets automatically on a schedule
+3. API endpoint we can POST to from our own pipeline
+
+We're currently manually copying and pasting batches of 50 tickets at a time which takes a full day every week. If we had bulk upload we'd 10x the value we get from PMAI.
+
+Is any of this on the roadmap? Happy to join a beta if so.
+
+Mei Zhang
+VP Product
+Ecommerce Giant

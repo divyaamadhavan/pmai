@@ -6,8 +6,13 @@
  */
 
 import bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
 import { getDb } from "./index.js";
+
+// Fixed IDs so tokens remain valid across DB resets — changing these would invalidate all existing JWTs
+const TENANT_ID = '453d2f00-b151-41aa-b314-33edb7f8749c';
+const AREA_ID   = '728a9473-29a3-45e4-9f70-dcc3e605c30d';
+const ADMIN_ID  = 'a1b2c3d4-0000-4000-8000-000000000001';
+const PM_ID     = 'f8fb6ebb-a82b-4340-b1ff-e1e936250df9';
 
 export async function seed() {
   const db = getDb();
@@ -20,10 +25,10 @@ export async function seed() {
 
   console.log("[seed] Seeding demo data…");
 
-  const tenantId = uuidv4();
-  const areaId = uuidv4();
-  const adminId = uuidv4();
-  const pmId = uuidv4();
+  const tenantId = TENANT_ID;
+  const areaId   = AREA_ID;
+  const adminId  = ADMIN_ID;
+  const pmId     = PM_ID;
 
   db.prepare("INSERT INTO tenants (id, name, slug, settings) VALUES (?, ?, ?, ?)")
     .run(tenantId, "Acme Corp", "acme", "{}");

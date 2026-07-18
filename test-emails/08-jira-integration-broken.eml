@@ -1,0 +1,25 @@
+From: priya.nair@fintech-corp.com
+To: support@pmai.example
+Date: Wed, 08 Jan 2026 14:05:00 +0000
+Subject: Jira integration stopped syncing tickets
+
+Hi Support,
+
+Our Jira integration broke sometime last Thursday. Sprint tickets we create in PMAI are no longer showing up in our Jira board.
+
+We've tried:
+- Disconnecting and reconnecting the integration
+- Regenerating the API token
+- Creating a test ticket manually
+
+Nothing works. The sync status shows "Connected" but tickets just don't appear in Jira.
+
+This is a critical issue for us — our engineering team only looks at Jira, so if tickets don't sync they effectively don't exist.
+
+Ticket ID for reference: our workspace is fintech-corp, project key PROD.
+
+Please treat this as urgent.
+
+Priya Nair
+Senior Product Manager
+FintechCorp

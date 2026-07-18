@@ -119,8 +119,8 @@ export function RoadmapBoard() {
   const [justifyItem, setJustifyItem] = useState<ApiRoadmapItem | null>(null);
 
   const { data: items = [], isLoading, isError } = useQuery<ApiRoadmapItem[]>({
-    queryKey: ['roadmap', projectId],
-    queryFn: () => apiClient.get('/api/roadmap', { params: projectId ? { productAreaId: projectId } : {} }).then((r) => r.data.data.items ?? []),
+    queryKey: ['roadmap'],
+    queryFn: () => apiClient.get('/api/roadmap').then((r) => r.data.data.items ?? []),
     retry: false,
   });
 
@@ -137,14 +137,23 @@ export function RoadmapBoard() {
   const changeStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiClient.put(`/api/roadmap/${id}`, { status }).then((r) => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roadmap'] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['roadmap'] });
+      if (variables.status === 'planned') {
+        // PRD was created synchronously on backend — refresh documents immediately
+        queryClient.invalidateQueries({ queryKey: ['documents'] });
+        queryClient.invalidateQueries({ queryKey: ['roadmap-planned-check'] });
+        // Force re-poll documents immediately so PRD appears without waiting
+        queryClient.invalidateQueries({ queryKey: ['documents'] });
+      }
+    },
   });
 
   if (isLoading) return <div className="flex justify-center py-16" style={{ background: '#020212' }}><LoadingSpinner size="lg" /></div>;
 
   return (
     <div className="flex h-full flex-col" style={{ background: '#020212' }}>
-      <div className="flex items-center justify-between px-8 py-4 shrink-0" style={{ borderBottom: '1px solid rgba(0,212,255,0.1)', background: 'rgba(6,6,26,0.8)' }}>
+      <div className="flex items-center justify-between px-4 sm:px-8 py-4 shrink-0" style={{ borderBottom: '1px solid rgba(0,212,255,0.1)', background: 'rgba(6,6,26,0.8)' }}>
         <div>
           <p className="text-xs font-mono uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,45,139,0.5)' }}>◆ ROADMAP BOARD</p>
           <h1 className="text-xl font-bold" style={{ color: '#e2e8f0' }}>Product Roadmap</h1>

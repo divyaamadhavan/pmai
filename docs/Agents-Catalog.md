@@ -4,10 +4,10 @@
 
 | Field | Detail |
 |---|---|
-| Version | 3.0 |
+| Version | 3.1 |
 | Status | Final |
 | Source | Built application, Skills-Catalog.md |
-| Date | 2026-07-08 |
+| Date | 2026-07-17 |
 
 ---
 
@@ -29,6 +29,7 @@ An agent is an AI orchestrator that fulfils a complete user goal by composing an
 | AG-06 | Sprint Agent | Convert roadmap to sprint tickets and manage sprints | SK-15, SK-16, SK-17 | ✓ Built |
 | AG-07 | Sprint Brief Agent | Generate complete sprint brief from real ticket data | SK-18 | ✓ Built |
 | AG-08 | Knowledge Agent | Answer PM questions from the knowledge base | SK-19 | ✓ Built |
+| AG-09 | Triage Agent | Run pre-configured triage tasks from the Agent Center | SK-01, SK-03 | ✓ Built |
 
 ---
 
@@ -107,6 +108,12 @@ Emit SSE 'done' event → client auto-closes modal
 
 **SSE Progress Events**
 Each step emits `{ step: string, message: string }` so the PM sees real-time progress.
+
+**Agent Running Visibility**
+When the PM approves the pipeline, `PipelineApprovalModal.tsx` calls `setAgentRunning('Feedback Pipeline')` via `AgentStatusContext`. This causes the Documents tab to immediately show a yellow "Feedback Pipeline running…" banner. The banner clears automatically via `clearAgentRunning()` when the SSE stream completes (success or error).
+
+**PRD Auto-Draft**
+When the pipeline creates roadmap items with status `planned`, the `roadmap-planned-check` polling query in `DocumentWorkspace.tsx` detects them and shows a "Agent drafting PRD · please wait…" banner until the PRD draft document appears in the document list.
 
 ---
 
@@ -250,6 +257,19 @@ SK-19 — Knowledge Base Q&A
   Input: PM question, document excerpts
   Output: grounded answer with source citations
 ```
+
+---
+
+### AG-09 — Triage Agent
+
+**Purpose**
+Runs pre-configured triage tasks on all current feedback in the system. Available from the Agent Center page. Provides a quick way for PMs to re-classify sentiment and themes without going through the full pipeline approval flow.
+
+**Triggered By**
+- PM clicks "Run" on a triage agent card in Agent Center
+
+**Agent Running Visibility**
+`AgentCenter.tsx` calls `setAgentRunning(agent.label)` before the API call and `clearAgentRunning()` in the `finally` block. The Documents tab shows a yellow banner for the duration.
 
 ---
 

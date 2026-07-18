@@ -7,8 +7,8 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 export function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('pm@acme.example');
+  const [password, setPassword] = useState('PM12345!');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,30 +155,6 @@ export function Login() {
           </form>
         </div>
 
-        {/* Demo credentials */}
-        <div
-          className="mt-4 rounded-xl px-5 py-4 text-xs font-mono"
-          style={{
-            background: 'rgba(168,85,247,0.08)',
-            border: '1px solid rgba(168,85,247,0.2)',
-          }}
-        >
-          <p className="mb-2 font-semibold uppercase tracking-wider" style={{ color: 'rgba(168,85,247,0.9)' }}>
-            ◆ Demo Credentials
-          </p>
-          <p style={{ color: 'rgba(148,163,184,0.8)' }}>
-            PM:{' '}
-            <span style={{ color: '#a855f7' }}>pm@acme.example</span>
-            {' '}/{' '}
-            <span style={{ color: '#a855f7' }}>PM12345!</span>
-          </p>
-          <p style={{ color: 'rgba(148,163,184,0.8)' }}>
-            Admin:{' '}
-            <span style={{ color: '#a855f7' }}>admin@acme.example</span>
-            {' '}/{' '}
-            <span style={{ color: '#a855f7' }}>Admin12345!</span>
-          </p>
-        </div>
 
         <p className="mt-4 text-center text-xs" style={{ color: 'rgba(100,116,139,0.6)' }}>
           © {new Date().getFullYear()} PMAI — Secure workspace for product teams

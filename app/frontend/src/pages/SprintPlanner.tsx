@@ -376,14 +376,14 @@ export function SprintPlanner() {
   const [sprintNameDraft, setSprintNameDraft] = useState('');
 
   const { data: sprints = [], isLoading: sprintsLoading } = useQuery<ApiSprint[]>({
-    queryKey: ['sprints', projectId],
-    queryFn: () => apiClient.get('/api/sprint/sprints', { params: projectId ? { productAreaId: projectId } : {} }).then((r) => r.data.data.sprints ?? []),
+    queryKey: ['sprints'],
+    queryFn: () => apiClient.get('/api/sprint/sprints').then((r) => r.data.data.sprints ?? []),
     retry: false,
   });
 
   const { data: tickets = [], isLoading: ticketsLoading } = useQuery<ApiTicket[]>({
-    queryKey: ['tickets', projectId, selectedSprintId],
-    queryFn: () => apiClient.get('/api/sprint/tickets', { params: { ...(projectId ? { productAreaId: projectId } : {}), ...(selectedSprintId ? { sprintId: selectedSprintId } : {}) } }).then((r) => r.data.data.tickets ?? []),
+    queryKey: ['tickets', selectedSprintId],
+    queryFn: () => apiClient.get('/api/sprint/tickets', { params: selectedSprintId ? { sprintId: selectedSprintId } : {} }).then((r) => r.data.data.tickets ?? []),
     retry: false,
   });
 

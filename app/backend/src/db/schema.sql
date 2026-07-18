@@ -192,6 +192,33 @@ CREATE TABLE IF NOT EXISTS knowledge_entries (
   updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS feedback_classifications (
+  id              TEXT PRIMARY KEY,
+  tenant_id       TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  product_area_id TEXT REFERENCES product_areas(id) ON DELETE SET NULL,
+  theme_name      TEXT NOT NULL,
+  category        TEXT NOT NULL,
+  priority        TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('critical','high','medium','low')),
+  priority_rationale TEXT,
+  benefits        TEXT NOT NULL DEFAULT '[]',
+  tradeoffs       TEXT NOT NULL DEFAULT '[]',
+  affected_users  TEXT,
+  revenue_impact  TEXT,
+  pm_decision     TEXT DEFAULT 'pending' CHECK(pm_decision IN ('book_of_work','backlog','dismissed','pending')),
+  pm_decision_at  TEXT,
+  roadmap_item_id TEXT REFERENCES roadmap_items(id) ON DELETE SET NULL,
+  feedback_count  INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+ALTER TABLE feedback_items ADD COLUMN status TEXT DEFAULT 'new';
+ALTER TABLE feedback_classifications ADD COLUMN customer_aspect TEXT;
+ALTER TABLE feedback_classifications ADD COLUMN critical_recommendation INTEGER DEFAULT 0;
+ALTER TABLE feedback_classifications ADD COLUMN critical_reason TEXT;
+ALTER TABLE feedback_classifications ADD COLUMN financial_benefits TEXT DEFAULT '[]';
+ALTER TABLE feedback_classifications ADD COLUMN qualitative_benefits TEXT DEFAULT '[]';
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id              TEXT PRIMARY KEY,
   tenant_id       TEXT NOT NULL,

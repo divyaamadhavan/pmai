@@ -4,10 +4,10 @@
 
 | Field | Detail |
 |---|---|
-| Version | 3.0 |
+| Version | 3.1 |
 | Status | Final |
 | Source | Problem Discovery.md, built application |
-| Date | 2026-07-08 |
+| Date | 2026-07-17 |
 
 ---
 
@@ -102,7 +102,10 @@ Each document shall have an AI assistant chat panel. The PM can instruct the AI 
 - Compare or synthesise across multiple attached documents
 The AI shall use attached Reference documents as context when generating responses.
 
-### FR-3.8 Generate from Feedback
+### FR-3.8 Agent Running Indicator
+The Documents tab shall display a yellow banner with a pulsing dot whenever a background agent or pipeline is running (triage agent from Agent Center, or the Feedback Pipeline). The banner text shall identify the active agent by name (e.g. "Feedback Pipeline running…"). The banner clears automatically when the agent completes.
+
+### FR-3.9 Generate from Feedback
 From the Documents workspace, PMs shall be able to select any feedback theme and document type (PRD / User Story / Acceptance Criteria) and generate a new AI document instantly without running the full pipeline.
 
 ---
@@ -112,13 +115,18 @@ From the Documents workspace, PMs shall be able to select any feedback theme and
 ### FR-4.1 Roadmap Item Management
 The system shall allow PMs to create, edit, and prioritise roadmap items with status: `backlog` → `planned` → `in_progress` → `done` and linkage to a source feedback theme.
 
-### FR-4.2 Customer Evidence Linkage
+### FR-4.2 PRD Auto-Draft on Status Change to Planned
+When a PM moves a roadmap item from any status to `planned`, the system shall automatically create a PRD draft document (`type: PRD`, title: `PRD Draft: {item title}`) in the Documents workspace without any additional PM action. Duplicate PRD drafts for the same roadmap item shall not be created if one already exists. The Documents tab shall show a banner:
+- "Agent drafting PRD · please wait…" (purple, pulsing) while the PRD draft is being prepared
+- "PRD draft ready · review below" (green) once the draft document is present in the library
+
+### FR-4.3 Customer Evidence Linkage
 Every roadmap item shall display its originating feedback theme and volume so PMs can always answer "why are we building this?" with data.
 
-### FR-4.3 One-Click Sprint Push
+### FR-4.4 One-Click Sprint Push
 From any roadmap item, the PM shall be able to push it to a sprint as a user story, pre-filling title, description, and acceptance criteria.
 
-### FR-4.4 Priority Ordering
+### FR-4.5 Priority Ordering
 The system shall allow PMs to reorder roadmap items by priority rank.
 
 ---

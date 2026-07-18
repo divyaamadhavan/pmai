@@ -22,6 +22,7 @@ import sprintRouter from './services/sprint/router.js';
 import knowledgeRouter from './services/knowledge/router.js';
 import dashboardRouter from './services/dashboard/router.js';
 import projectsRouter from './services/projects/router.js';
+import agentsRouter from './services/agents/router.js';
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ app.use('/api/sprint',    sprintRouter);
 app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/projects',  projectsRouter);
+app.use('/api/agents',   agentsRouter);
 
 // ─── Serve frontend (production) ─────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ import {
 import { apiClient, fetchSSEPost } from '../lib/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useProject } from '../contexts/ProjectContext';
+import { useAgentStatus } from '../contexts/AgentStatusContext';
 
 interface ApiDocument {
   id: string; title: string; type: string; status: string;
@@ -332,11 +333,38 @@ export function DocumentWorkspace() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: docs = [], isLoading } = useQuery<ApiDocument[]>({
+  const { agentRunning, agentLabel } = useAgentStatus();
+  const [prdAgentActive, setPrdAgentActive] = useState(false);
+
+  // Poll more often when an agent is running OR when planned items exist (PRD creation pending)
+  const shouldPoll = agentRunning || prdAgentActive;
+
+  const { data: docs = [], isLoading, refetch: refetchDocs } = useQuery<ApiDocument[]>({
     queryKey: ['documents', projectId],
     queryFn: () => apiClient.get('/api/documents', { params: projectId ? { productAreaId: projectId } : {} }).then((r) => r.data.data.documents ?? []),
     retry: false,
+    refetchInterval: shouldPoll ? 3000 : false,
   });
+
+  // Poll for planned roadmap items (no productAreaId filter — items created by pipeline have null area)
+  useQuery({
+    queryKey: ['roadmap-planned-check'],
+    queryFn: async () => {
+      const rmResp = await apiClient.get('/api/roadmap', { params: { status: 'planned' } });
+      const planned: Array<{ title: string }> = rmResp.data?.data?.items ?? [];
+      const isActive = planned.length > 0;
+      setPrdAgentActive(isActive);
+      return isActive;
+    },
+    refetchInterval: 3000,
+    retry: false,
+  });
+
+  // Immediately refetch docs the moment we detect planned items or agent starts
+  useEffect(() => {
+    if (prdAgentActive || agentRunning) refetchDocs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prdAgentActive, agentRunning]);
 
   const { data: themes = [], isLoading: themesLoading } = useQuery<ApiTheme[]>({
     queryKey: ['feedback-themes', projectId],
@@ -469,6 +497,26 @@ export function DocumentWorkspace() {
         <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid rgba(0,212,255,0.08)' }}>
           <p className="text-xs font-mono uppercase tracking-widest mb-0.5" style={{ color: 'rgba(0,255,136,0.5)' }}>◆ DOCUMENTS</p>
           <h1 className="text-base font-bold" style={{ color: '#e2e8f0' }}>Workspace</h1>
+          {agentRunning && (
+            <div className="mt-2 flex items-center gap-1.5 rounded px-2 py-1.5 text-xs" style={{ background: 'rgba(255,238,0,0.08)', border: '1px solid rgba(255,238,0,0.25)', color: '#ffee00' }}>
+              <span className="h-1.5 w-1.5 rounded-full animate-pulse shrink-0" style={{ background: '#ffee00' }} />
+              {agentLabel} running…
+            </div>
+          )}
+          {!agentRunning && prdAgentActive && (() => {
+            const hasDraftPrd = docs.some(d => d.type === 'PRD' && d.title.startsWith('PRD Draft:'));
+            return hasDraftPrd ? (
+              <div className="mt-2 flex items-center gap-1.5 rounded px-2 py-1.5 text-xs" style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)', color: '#00ff88' }}>
+                <CheckCircle className="h-3 w-3 shrink-0" />
+                PRD draft ready · review below
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-1.5 rounded px-2 py-1.5 text-xs" style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', color: '#a855f7' }}>
+                <span className="h-1.5 w-1.5 rounded-full animate-pulse shrink-0" style={{ background: '#a855f7' }} />
+                Agent drafting PRD · please wait…
+              </div>
+            );
+          })()}
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {isLoading ? (

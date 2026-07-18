@@ -8,7 +8,7 @@ import { query } from '../../db/index.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { createSSEStream } from '../../lib/sse.js';
 import { ok, fail, badRequest, notFound } from '../../lib/response.js';
-import { analyseFeedback, buildPipelinePreview } from '../../ai/index.js';
+import { analyseFeedback, buildPipelinePreview, classifyThemes } from '../../ai/index.js';
 import { runFeedbackPipeline } from './pipeline.js';
 
 const ACCEPTED_EXTS = ['.eml', '.mbox', '.csv', '.txt', '.md', '.pdf', '.docx', '.doc'];
@@ -34,8 +34,9 @@ const ListFeedbackSchema = z.object({
   dateFrom: z.string().datetime().optional(),
   dateTo: z.string().datetime().optional(),
   productAreaId: z.string().uuid().optional(),
+  status: z.enum(['new', 'addressed']).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 const syncJobs = new Map<string, { status: string; progress: number; total: number }>();
@@ -126,7 +127,7 @@ router.get('/', async (req: Request, res: Response) => {
   const parsed = ListFeedbackSchema.safeParse(req.query);
   if (!parsed.success) { badRequest(res, parsed.error.issues.map((i) => i.message).join('; ')); return; }
 
-  const { channel, sentiment, theme, dateFrom, dateTo, productAreaId, page, limit } = parsed.data;
+  const { channel, sentiment, theme, dateFrom, dateTo, productAreaId, status, page, limit } = parsed.data;
   const tenantId = req.user!.tenantId;
   const offset = (page - 1) * limit;
 
@@ -137,6 +138,7 @@ router.get('/', async (req: Request, res: Response) => {
   if (channel) { conditions.push(`fi.channel = $${paramIdx++}`); params.push(channel); }
   if (sentiment) { conditions.push(`fi.sentiment = $${paramIdx++}`); params.push(sentiment); }
   if (productAreaId) { conditions.push(`fi.product_area_id = $${paramIdx++}`); params.push(productAreaId); }
+  if (status) { conditions.push(`COALESCE(fi.status,'new') = $${paramIdx++}`); params.push(status); }
   if (dateFrom) { conditions.push(`fi.received_at >= $${paramIdx++}`); params.push(dateFrom); }
   if (dateTo) { conditions.push(`fi.received_at <= $${paramIdx++}`); params.push(dateTo); }
   if (theme) {
@@ -148,7 +150,8 @@ router.get('/', async (req: Request, res: Response) => {
   const [itemsResult, countResult] = await Promise.all([
     query(
       `SELECT fi.id, fi.channel, fi.author, fi.body, fi.sentiment, fi.sentiment_score,
-              fi.received_at, fi.product_area_id, fi.source_url
+              fi.received_at, fi.product_area_id, fi.source_url, COALESCE(fi.status,'new') as status,
+              fi.agent_category, fi.agent_priority, fi.agent_composite_score
        FROM feedback_items fi WHERE ${where} ORDER BY fi.received_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
       [...params, limit, offset]
     ),
@@ -185,7 +188,7 @@ router.get('/themes', async (req: Request, res: Response) => {
   const params: unknown[] = [tenantId];
   if (productAreaId) { conditions.push('product_area_id = $2'); params.push(productAreaId); }
   const result = await query(
-    `SELECT id, name, description, item_count, created_at FROM feedback_themes WHERE ${conditions.join(' AND ')} ORDER BY item_count DESC`,
+    `SELECT id, name, description, item_count, created_at, agent_triage_decision, agent_triage_rationale, agent_triage_details, agent_triage_actioned FROM feedback_themes WHERE ${conditions.join(' AND ')} ORDER BY item_count DESC`,
     params
   );
   ok(res, { themes: result.rows });
@@ -223,6 +226,31 @@ router.post('/items/:id/flag', async (req: Request, res: Response) => {
     [isNoise, isNoise ? new Date() : null, isNoise ? req.user!.id : null, id, tenantId]
   );
   ok(res, { id, isNoise });
+});
+
+// ─── DELETE /items/:id — delete a feedback item ──────────────────────────────
+
+router.delete('/items/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const tenantId = req.user!.tenantId;
+  const existing = await query('SELECT id FROM feedback_items WHERE id = $1 AND tenant_id = $2 LIMIT 1', [id, tenantId]);
+  if (!existing.rows[0]) { notFound(res, 'Feedback item not found'); return; }
+  await query('DELETE FROM feedback_clusters WHERE feedback_item_id = $1', [id]);
+  await query('DELETE FROM feedback_items WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+  ok(res, { id, deleted: true });
+});
+
+// ─── PATCH /items/:id/address — mark feedback item as addressed ───────────────
+
+router.patch('/items/:id/address', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body as { status?: 'new' | 'addressed' };
+  const tenantId = req.user!.tenantId;
+  const existing = await query('SELECT id FROM feedback_items WHERE id = $1 AND tenant_id = $2 LIMIT 1', [id, tenantId]);
+  if (!existing.rows[0]) { notFound(res, 'Feedback item not found'); return; }
+  const newStatus = status ?? 'addressed';
+  await query('UPDATE feedback_items SET status = $1 WHERE id = $2 AND tenant_id = $3', [newStatus, id, tenantId]);
+  ok(res, { id, status: newStatus });
 });
 
 // ─── POST /upload — parse & analyse, return preview (no pipeline auto-run) ───
@@ -264,27 +292,63 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
     await query(
       `INSERT INTO feedback_items (id, tenant_id, product_area_id, channel, author, body, sentiment, sentiment_score, received_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [itemId, tenantId, productAreaId, ext === '.eml' || ext === '.mbox' ? 'Email' : 'Document',
+      [itemId, tenantId, productAreaId,
+       ext === '.eml' || ext === '.mbox' ? 'Email' : ext === '.csv' ? 'CSV' : 'Manual',
        item.author, item.body, analysis.sentiment, analysis.sentimentScore,
        item.receivedAt ?? new Date().toISOString()]
     );
     insertedIds.push(itemId);
   }
 
-  // Compute themes + counts + evidence for preview
+  // Compute themes + counts + evidence
   const themeCountMap = new Map<string, number>();
   const themeEvidenceMap = new Map<string, string>();
-  for (const result of analysisResults) {
-    for (const tm of result.themes) {
+  // Map: themeName → list of feedback item indices that matched
+  const themeItemsMap = new Map<string, number[]>();
+  for (let i = 0; i < analysisResults.length; i++) {
+    for (const tm of analysisResults[i].themes) {
       themeCountMap.set(tm.name, (themeCountMap.get(tm.name) ?? 0) + 1);
       if (!themeEvidenceMap.has(tm.name) && tm.snippet) themeEvidenceMap.set(tm.name, tm.snippet);
+      const arr = themeItemsMap.get(tm.name) ?? [];
+      arr.push(i);
+      themeItemsMap.set(tm.name, arr);
     }
   }
   const themes = [...themeCountMap.keys()];
   const themeCounts = themes.map((t) => themeCountMap.get(t)!);
   const themeEvidence = themes.map((t) => themeEvidenceMap.get(t) ?? '');
 
-  // Build preview — do NOT run pipeline yet
+  // Persist themes + clusters so "Classify & Score" can work immediately
+  const savedThemeIds: string[] = [];
+  for (let tIdx = 0; tIdx < themes.length; tIdx++) {
+    const themeName = themes[tIdx];
+    const existingTheme = await query(
+      'SELECT id FROM feedback_themes WHERE tenant_id = $1 AND name = $2 LIMIT 1',
+      [tenantId, themeName]
+    );
+    let themeId: string;
+    if (existingTheme.rows[0]) {
+      themeId = (existingTheme.rows[0] as Record<string, unknown>).id as string;
+      await query('UPDATE feedback_themes SET item_count = item_count + $1, updated_at = datetime(\'now\') WHERE id = $2', [themeCounts[tIdx], themeId]);
+    } else {
+      themeId = uuidv4();
+      await query(
+        'INSERT INTO feedback_themes (id, tenant_id, product_area_id, name, item_count) VALUES ($1,$2,$3,$4,$5)',
+        [themeId, tenantId, productAreaId, themeName, themeCounts[tIdx]]
+      );
+    }
+    savedThemeIds.push(themeId);
+    // Create cluster entries linking feedback items → theme
+    for (const itemIdx of (themeItemsMap.get(themeName) ?? [])) {
+      try {
+        await query(
+          'INSERT INTO feedback_clusters (id, tenant_id, product_area_id, theme_id, feedback_item_id) VALUES ($1,$2,$3,$4,$5)',
+          [uuidv4(), tenantId, productAreaId, themeId, insertedIds[itemIdx]]
+        );
+      } catch { /* duplicate — ignore */ }
+    }
+  }
+
   const preview = buildPipelinePreview(themes, themeCounts, items.length);
 
   ok(res, {
@@ -296,7 +360,7 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
     feedbackCount: items.length,
     productAreaId,
     preview,
-    message: `${insertedIds.length} feedback item(s) imported from "${req.file.originalname}". Review the AI plan below and approve to generate documents.`,
+    message: `${insertedIds.length} feedback item(s) imported. ${themes.length} theme(s) detected — click "Classify & Score" to analyse.`,
   }, 201);
 });
 
@@ -329,10 +393,14 @@ router.post('/analyse-existing', async (req: Request, res: Response) => {
 
   const themeCountMap = new Map<string, number>();
   const themeEvidenceMap = new Map<string, string>();
-  for (const result of analysisResults) {
-    for (const tm of result.themes) {
+  const themeItemsMapExisting = new Map<string, string[]>(); // themeName → feedback_item_id[]
+  for (let i = 0; i < analysisResults.length; i++) {
+    for (const tm of analysisResults[i].themes) {
       themeCountMap.set(tm.name, (themeCountMap.get(tm.name) ?? 0) + 1);
       if (!themeEvidenceMap.has(tm.name) && tm.snippet) themeEvidenceMap.set(tm.name, tm.snippet);
+      const arr = themeItemsMapExisting.get(tm.name) ?? [];
+      arr.push(itemsResult.rows[i].id as string);
+      themeItemsMapExisting.set(tm.name, arr);
     }
   }
 
@@ -343,6 +411,35 @@ router.post('/analyse-existing', async (req: Request, res: Response) => {
   const themes = [...themeCountMap.keys()];
   const themeCounts = themes.map((t) => themeCountMap.get(t)!);
   const themeEvidence = themes.map((t) => themeEvidenceMap.get(t) ?? '');
+
+  // Persist / refresh themes + clusters
+  for (let tIdx = 0; tIdx < themes.length; tIdx++) {
+    const themeName = themes[tIdx];
+    const existingTheme = await query(
+      'SELECT id FROM feedback_themes WHERE tenant_id = $1 AND name = $2 LIMIT 1',
+      [tenantId, themeName]
+    );
+    let themeId: string;
+    if (existingTheme.rows[0]) {
+      themeId = (existingTheme.rows[0] as Record<string, unknown>).id as string;
+      await query('UPDATE feedback_themes SET item_count = $1, updated_at = datetime(\'now\') WHERE id = $2', [themeCounts[tIdx], themeId]);
+    } else {
+      themeId = uuidv4();
+      await query(
+        'INSERT INTO feedback_themes (id, tenant_id, product_area_id, name, item_count) VALUES ($1,$2,$3,$4,$5)',
+        [themeId, tenantId, productAreaId ?? null, themeName, themeCounts[tIdx]]
+      );
+    }
+    for (const feedbackItemId of (themeItemsMapExisting.get(themeName) ?? [])) {
+      try {
+        await query(
+          'INSERT INTO feedback_clusters (id, tenant_id, product_area_id, theme_id, feedback_item_id) VALUES ($1,$2,$3,$4,$5)',
+          [uuidv4(), tenantId, productAreaId ?? null, themeId, feedbackItemId]
+        );
+      } catch { /* duplicate cluster — ignore */ }
+    }
+  }
+
   const preview = buildPipelinePreview(themes, themeCounts, itemsResult.rows.length);
 
   ok(res, {
@@ -352,7 +449,7 @@ router.post('/analyse-existing', async (req: Request, res: Response) => {
     feedbackCount: itemsResult.rows.length,
     productAreaId: productAreaId ?? null,
     preview,
-    message: `Analysed ${itemsResult.rows.length} existing feedback item(s). Review the AI plan below and approve to generate documents.`,
+    message: `Analysed ${itemsResult.rows.length} feedback item(s). ${themes.length} theme(s) detected — click "Classify & Score" to analyse.`,
   });
 });
 
@@ -446,6 +543,290 @@ router.post('/pipeline/run-from-existing', async (req: Request, res: Response) =
   }
 
   stream.end();
+});
+
+// ─── POST /classify — classify themes into PM-actionable categories ───────────
+
+router.post('/classify', async (req: Request, res: Response) => {
+  const { themes, themeCounts, productAreaId } = req.body as {
+    themes: string[];
+    themeCounts: number[];
+    productAreaId?: string | null;
+  };
+
+  if (!Array.isArray(themes) || themes.length === 0) {
+    badRequest(res, 'themes array is required'); return;
+  }
+
+  const tenantId = req.user!.tenantId;
+
+  // Fetch sentiment breakdown per theme from DB
+  const sentimentBreakdowns: Array<{ negative: number; total: number }> = [];
+  for (const theme of themes) {
+    const themeRow = await query(
+      `SELECT id FROM feedback_themes WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+      [tenantId, theme]
+    );
+    if (themeRow.rows[0]) {
+      const themeId = (themeRow.rows[0] as Record<string, unknown>).id as string;
+      const sentResult = await query(
+        `SELECT sentiment, COUNT(*) as cnt FROM feedback_items fi
+         INNER JOIN feedback_clusters fc ON fc.feedback_item_id = fi.id
+         WHERE fc.theme_id = $1 AND fi.tenant_id = $2 GROUP BY sentiment`,
+        [themeId, tenantId]
+      );
+      let neg = 0, total = 0;
+      for (const row of sentResult.rows as Array<Record<string, unknown>>) {
+        total += Number(row.cnt);
+        if (row.sentiment === 'negative') neg += Number(row.cnt);
+      }
+      sentimentBreakdowns.push({ negative: neg, total: total || (themeCounts[themes.indexOf(theme)] ?? 1) });
+    } else {
+      sentimentBreakdowns.push({ negative: 0, total: themeCounts[themes.indexOf(theme)] ?? 1 });
+    }
+  }
+
+  const classifications = classifyThemes(themes, themeCounts, sentimentBreakdowns);
+
+  // Upsert classifications into DB
+  for (const c of classifications) {
+    const existing = await query(
+      `SELECT id FROM feedback_classifications WHERE tenant_id = $1 AND theme_name = $2 LIMIT 1`,
+      [tenantId, c.themeName]
+    );
+    if (existing.rows[0]) {
+      const existId = (existing.rows[0] as Record<string, unknown>).id as string;
+      await query(
+        `UPDATE feedback_classifications SET category=$1, priority=$2, priority_rationale=$3,
+         benefits=$4, tradeoffs=$5, affected_users=$6, revenue_impact=$7, feedback_count=$8,
+         customer_aspect=$9, critical_recommendation=$10, critical_reason=$11,
+         financial_benefits=$12, qualitative_benefits=$13, type=$14, updated_at=datetime('now') WHERE id=$15`,
+        [c.category, c.priority, c.priorityRationale,
+         JSON.stringify([...c.financialBenefits, ...c.qualitativeBenefits]),
+         JSON.stringify(c.tradeoffs), c.affectedUsers, c.revenueImpact, c.feedbackCount,
+         c.customerAspect, c.criticalRecommendation ? 1 : 0, c.criticalReason,
+         JSON.stringify(c.financialBenefits), JSON.stringify(c.qualitativeBenefits), c.type, existId]
+      );
+    } else {
+      const { v4: uuidv4 } = await import('uuid');
+      await query(
+        `INSERT INTO feedback_classifications
+         (id, tenant_id, product_area_id, theme_name, category, priority, priority_rationale,
+          benefits, tradeoffs, affected_users, revenue_impact, feedback_count,
+          customer_aspect, critical_recommendation, critical_reason, financial_benefits, qualitative_benefits, type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+        [uuidv4(), tenantId, productAreaId ?? null, c.themeName, c.category, c.priority,
+         c.priorityRationale, JSON.stringify([...c.financialBenefits, ...c.qualitativeBenefits]),
+         JSON.stringify(c.tradeoffs), c.affectedUsers, c.revenueImpact, c.feedbackCount,
+         c.customerAspect, c.criticalRecommendation ? 1 : 0, c.criticalReason,
+         JSON.stringify(c.financialBenefits), JSON.stringify(c.qualitativeBenefits), c.type]
+      );
+    }
+  }
+
+  ok(res, { classifications });
+});
+
+// ─── GET /classifications — list saved classifications ────────────────────────
+
+router.get('/classifications', async (req: Request, res: Response) => {
+  const tenantId = req.user!.tenantId;
+  const { productAreaId } = req.query as { productAreaId?: string };
+  const conditions = ['tenant_id = $1'];
+  const params: unknown[] = [tenantId];
+  if (productAreaId) { conditions.push('product_area_id = $2'); params.push(productAreaId); }
+  const result = await query(
+    `SELECT * FROM feedback_classifications WHERE ${conditions.join(' AND ')} ORDER BY
+     CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
+     feedback_count DESC`,
+    params
+  );
+  ok(res, { classifications: result.rows });
+});
+
+// ─── PATCH /classifications/:id/decision — record PM decision ────────────────
+
+router.patch('/classifications/:id/decision', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { decision } = req.body as { decision: 'backlog' | 'dismissed' | 'pending' };
+  const tenantId = req.user!.tenantId;
+
+  const allowed = ['backlog', 'dismissed', 'pending'];
+  if (!allowed.includes(decision)) { badRequest(res, 'Invalid decision value'); return; }
+
+  const existing = await query(
+    `SELECT id, theme_name, category FROM feedback_classifications WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+    [id, tenantId]
+  );
+  if (!existing.rows[0]) { notFound(res, 'Classification not found'); return; }
+
+  await query(
+    `UPDATE feedback_classifications SET pm_decision=$1, pm_decision_at=datetime('now'), updated_at=datetime('now') WHERE id=$2`,
+    [decision, id]
+  );
+
+  // Mark a feedback item as addressed only when ALL its themes have a non-pending decision
+  if (decision !== 'pending') {
+    const row = existing.rows[0] as Record<string, unknown>;
+    const themeRow = await query(
+      `SELECT id FROM feedback_themes WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+      [tenantId, row.theme_name]
+    );
+    if (themeRow.rows[0]) {
+      const themeId = (themeRow.rows[0] as Record<string, unknown>).id as string;
+      // Get all feedback items linked to this theme
+      const itemsInTheme = await query(
+        `SELECT feedback_item_id FROM feedback_clusters WHERE theme_id = $1`,
+        [themeId]
+      );
+      for (const itemRow of itemsInTheme.rows as Array<{ feedback_item_id: string }>) {
+        const fid = itemRow.feedback_item_id;
+        // Count how many themes this item belongs to that are still pending
+        const pendingCheck = await query(
+          `SELECT COUNT(*) as cnt
+           FROM feedback_clusters fc
+           JOIN feedback_themes ft ON ft.id = fc.theme_id
+           JOIN feedback_classifications fc2
+             ON fc2.theme_name = ft.name AND fc2.tenant_id = $2
+           WHERE fc.feedback_item_id = $1
+             AND fc2.pm_decision = 'pending'`,
+          [fid, tenantId]
+        );
+        const pendingCount = Number((pendingCheck.rows[0] as { cnt: number }).cnt);
+        if (pendingCount === 0) {
+          await query(
+            `UPDATE feedback_items SET status = 'addressed' WHERE id = $1 AND tenant_id = $2`,
+            [fid, tenantId]
+          );
+        }
+      }
+    }
+  }
+
+  // If adding to backlog, create a roadmap item and auto-draft a PRD
+  let roadmapItemId: string | null = null;
+  if (decision === 'backlog') {
+    const row = existing.rows[0] as Record<string, unknown>;
+    const { v4: uuidv4 } = await import('uuid');
+    roadmapItemId = uuidv4();
+    const itemTitle = `[${row.category}] ${row.theme_name}`;
+    await query(
+      `INSERT INTO roadmap_items (id, tenant_id, title, description, status, priority_score, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [roadmapItemId, tenantId,
+       itemTitle,
+       `PM decision: backlog. Classified from customer feedback.`,
+       'planned', 5,
+       req.user!.id]
+    );
+    await query(
+      `UPDATE feedback_classifications SET roadmap_item_id=$1 WHERE id=$2`,
+      [roadmapItemId, id]
+    );
+
+    // Auto-create PRD for this backlog item
+    (async () => {
+      try {
+        const existingPrd = await query(
+          `SELECT id FROM documents WHERE tenant_id = $1 AND type = 'PRD' AND (title = $2 OR title = $3) LIMIT 1`,
+          [tenantId, `PRD Draft: ${itemTitle}`, itemTitle]
+        );
+        if (existingPrd.rows.length > 0) return;
+        const linkedThemes = await query(
+          `SELECT DISTINCT theme_name FROM feedback_classifications WHERE tenant_id = $1 AND pm_decision = 'backlog' LIMIT 5`,
+          [tenantId]
+        );
+        const themes = (linkedThemes.rows as Array<{ theme_name: string }>).map(r => r.theme_name);
+        const prdContent = `# PRD Draft — ${itemTitle}
+
+> **Status:** Draft — auto-generated by PMAI when theme moved to Backlog.
+> **Generated:** ${new Date().toLocaleString()}
+
+---
+
+## Executive Summary
+
+This PRD covers the requirements for **${itemTitle}**. This theme was identified as a priority from customer feedback analysis.
+
+${themes.length > 0 ? `Evidence from **${themes.length} feedback theme(s)**: ${themes.join(', ')}.` : ''}
+
+---
+
+## Problem Statement
+
+Customers are experiencing friction in this area. Based on collected feedback, this represents a significant opportunity to improve product value.
+
+[PM TO COMPLETE: Add specific customer quotes and data points here.]
+
+---
+
+## Goals & Success Metrics
+
+| Goal | Metric | Target |
+|------|--------|--------|
+| Improve user satisfaction | NPS / CSAT | +10 points |
+| Reduce support tickets | Ticket volume | -30% |
+| Drive adoption | Feature usage rate | >40% of DAU |
+
+---
+
+## Functional Requirements
+
+### FR-01: Core Functionality
+- Users must be able to perform the primary action within 3 clicks
+- System must respond within 2 seconds for all primary actions
+
+### FR-02: Integration
+- Must integrate with existing data model
+- Must respect tenant-level permissions
+
+[PM TO COMPLETE: Add detailed requirements from engineering discussions.]
+
+---
+
+## Non-Functional Requirements
+
+- **Performance:** p95 response time < 200ms
+- **Availability:** 99.9% uptime SLA
+- **Security:** Follows existing RBAC model
+
+---
+
+## Out of Scope (Phase 1)
+
+- Mobile native experience
+- Bulk operations
+- Third-party integrations (deferred to Phase 2)
+
+---
+
+## Timeline & Milestones
+
+| Milestone | Target |
+|-----------|--------|
+| PRD Approved | [PM TO COMPLETE] |
+| Design Done | [PM TO COMPLETE] |
+| Engineering Start | [PM TO COMPLETE] |
+| GA Release | [PM TO COMPLETE] |
+
+---
+
+*Auto-drafted by PMAI when PM moved theme to Backlog. Linked themes: ${themes.join(', ') || 'none'}. Requires PM review before sharing.*`;
+
+        const prdId = uuidv4();
+        await query(
+          `INSERT INTO documents (id, tenant_id, created_by, title, type, status, sections, product_area_id)
+           VALUES ($1, $2, $3, $4, 'PRD', 'draft', $5, $6)`,
+          [prdId, tenantId, req.user!.id, `PRD Draft: ${itemTitle}`, JSON.stringify({ content: prdContent }), null]
+        );
+        console.log(`[PRD] Auto-created PRD for backlog theme "${itemTitle}" (id: ${prdId})`);
+      } catch (err) {
+        console.error('[PRD] Auto-create failed:', (err as Error).message);
+      }
+    })();
+  }
+
+  ok(res, { id, decision, roadmapItemId });
 });
 
 // ─── GET /stream/sync/:jobId — SSE progress ───────────────────────────────────

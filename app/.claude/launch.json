@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pmai-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "PMAI/app/backend",
+      "port": 3000
+    },
+    {
+      "name": "pmai-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "PMAI/app/frontend",
+      "port": 5173
+    }
+  ]
+}
