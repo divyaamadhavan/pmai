@@ -5,8 +5,11 @@
  * Usage: npm run seed  OR  imported by bootstrap
  */
 
-import bcrypt from "bcryptjs";
 import { getDb } from "./index.js";
+
+// Pre-computed bcrypt hashes (rounds=10) — avoids slow hash on serverless cold start
+const ADMIN_HASH = "$2a$10$ATcbdDcPYOHVr40ZLn8/GOrifn8ODoyllug/AwJtCYciYQxA1keGO";
+const PM_HASH    = "$2a$10$zmLSqihOJNGn7sLISHtRnOB7WQ0G4HG7wPAw/jFurqRnVeJGVtR5a";
 
 // Fixed IDs so tokens remain valid across DB resets — changing these would invalidate all existing JWTs
 const TENANT_ID = '453d2f00-b151-41aa-b314-33edb7f8749c';
@@ -36,13 +39,11 @@ export async function seed() {
   db.prepare("INSERT INTO product_areas (id, tenant_id, name, description) VALUES (?, ?, ?, ?)")
     .run(areaId, tenantId, "Core Platform", "Main product area");
 
-  const adminHash = await bcrypt.hash("Admin12345!", 12);
   db.prepare("INSERT INTO users (id, tenant_id, product_area_id, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(adminId, tenantId, areaId, "admin@acme.example", adminHash, "Admin User", "Admin");
+    .run(adminId, tenantId, areaId, "admin@acme.example", ADMIN_HASH, "Admin User", "Admin");
 
-  const pmHash = await bcrypt.hash("PM12345!", 12);
   db.prepare("INSERT INTO users (id, tenant_id, product_area_id, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(pmId, tenantId, areaId, "pm@acme.example", pmHash, "Product Manager", "PM");
+    .run(pmId, tenantId, areaId, "pm@acme.example", PM_HASH, "Product Manager", "PM");
 
   console.log("[seed] Done — pm@acme.example / PM12345!");
 }
