@@ -17,6 +17,9 @@
     { "src": "/(.*)", "dest": "/app/backend/api/index.ts" }
   ],
   "env": {
-    "VERCEL": "1"
+    "VERCEL": "1",
+    "JWT_SECRET": "pmai-demo-jwt-secret-change-in-production",
+    "JWT_REFRESH_SECRET": "pmai-demo-refresh-secret-change-in-production",
+    "NODE_ENV": "production"
   }
 }
