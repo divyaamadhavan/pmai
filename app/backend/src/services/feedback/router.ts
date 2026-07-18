@@ -280,7 +280,7 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
   try {
     analysisResults = await analyseFeedback(analysisInput, tenantId);
   } catch {
-    analysisResults = analysisInput.map((_, idx) => ({ id: String(idx), sentiment: 'neutral' as const, sentimentScore: 0.5, themes: [] as string[] }));
+    analysisResults = analysisInput.map((_, idx) => ({ id: String(idx), sentiment: 'neutral' as const, sentimentScore: 0.5, themes: [] as import('../../ai/index.js').ThemeMatch[] }));
   }
 
   // Insert feedback items
@@ -388,7 +388,7 @@ router.post('/analyse-existing', async (req: Request, res: Response) => {
   try {
     analysisResults = await analyseFeedback(analysisInput, tenantId);
   } catch {
-    analysisResults = analysisInput.map((item) => ({ id: item.id, sentiment: 'neutral' as const, sentimentScore: 0.5, themes: [] as string[] }));
+    analysisResults = analysisInput.map((item) => ({ id: item.id, sentiment: 'neutral' as const, sentimentScore: 0.5, themes: [] as import('../../ai/index.js').ThemeMatch[] }));
   }
 
   const themeCountMap = new Map<string, number>();
